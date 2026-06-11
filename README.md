@@ -1,8 +1,8 @@
 # Blender Super MCP
 
-Control Blender 3D from opencode or Claude Code via natural language. Combines the best of the official (ahujasid) and community (blender-open-mcp) versions.
+通过自然语言从 opencode 或 Claude Code 控制 Blender 3D。融合了官方版 (ahujasid) 和社区版 (blender-open-mcp) 的优点。
 
-## Architecture
+## 架构
 
 ```
 opencode/Claude Code ──stdio──> MCP Server ──TCP:9876──> Blender Addon
@@ -12,118 +12,118 @@ opencode/Claude Code ──stdio──> MCP Server ──TCP:9876──> Blender
                                  Ollama                   Blender 3D
 ```
 
-- **MCP Server** (`superMCP/mcp_server.py`): FastMCP server via stdio
-- **Blender Addon** (`superMCP/addon.py`): TCP server inside Blender, executes bpy commands on the main thread
-- **Ollama** (optional): Local LLM for AI prompts
+- **MCP 服务器** (`superMCP/mcp_server.py`): FastMCP 服务器，通过 stdio 通信
+- **Blender 插件** (`superMCP/addon.py`): Blender 内部的 TCP 服务器，在主线程执行 bpy 命令
+- **Ollama** (可选): 本地运行的 LLM，用于 AI 提示
 
-## Quick Start
+## 快速开始
 
-### 1. Install the Addon in Blender
+### 1. 在 Blender 中安装插件
 
-1. Open Blender → Edit → Preferences → Add-ons
-2. Click the dropdown → "Install from Disk" → select `superMCP/addon.py`
-3. Enable "Blender Super MCP"
-4. The TCP server auto-starts when the addon is enabled. In 3D Viewport, press N → Super MCP to see status.
+1. 打开 Blender → 编辑 → 偏好设置 → 插件
+2. 下拉菜单 → "从磁盘安装" → 选择 `superMCP/addon.py`
+3. 勾选启用 "Blender Super MCP"
+4. TCP 服务器会在插件启用时自动启动。在 3D 视口按 N → Super MCP 面板查看状态
 
-### 2. Configure opencode / Claude Code
+### 2. 配置 opencode / Claude Code
 
-**opencode** (auto via project config):
-The `opencode.json` in this repo already defines the MCP server — just open the project.
+**opencode** (通过项目配置自动加载):
+仓库中的 `opencode.json` 已定义 MCP 服务器 — 直接打开项目即可。
 
 **Claude Code:**
 ```bash
-claude mcp add --transport stdio blender -- python /absolute/path/to/superMCP/mcp_server.py
+claude mcp add --transport stdio blender -- python /绝对路径/superMCP/mcp_server.py
 ```
 
-### 3. Use
+### 3. 开始使用
 
-Ask your AI assistant to control Blender:
-- "Create a red cube at position (1, 0, 0)"
-- "Set up an HDRI from PolyHaven"
-- "Search Sketchfab for a car model"
+让你的 AI 助手控制 Blender：
+- "在位置 (1, 0, 0) 创建一个红色立方体"
+- "设置一个 PolyHaven 的 HDRI 环境"
+- "在 Sketchfab 搜索汽车模型"
 
-## Available Tools (31)
+## 可用工具 (31 个)
 
-### Core (8)
-| Tool | Description |
-|------|-------------|
-| `blender_get_scene_info` | Full scene summary |
-| `blender_get_object_info` | Detailed object info (mesh stats, modifiers, materials) |
-| `blender_create_object` | Create primitives (CUBE, SPHERE, CYLINDER, TORUS, MONKEY, etc.) |
-| `blender_modify_object` | Move, rotate, scale, toggle visibility |
-| `blender_delete_object` | Delete objects |
-| `blender_set_material` | Set/create materials with Principled BSDF color |
-| `blender_render_image` | Render to file |
-| `blender_execute_code` | Execute Python code for complex materials, modifiers, geometry nodes, etc. |
+### 核心 (8 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_get_scene_info` | 获取完整的场景摘要 |
+| `blender_get_object_info` | 获取物体详细信息（网格统计、修改器、材质）|
+| `blender_create_object` | 创建基础几何体（立方体、球体、圆柱、环面、猴头等）|
+| `blender_modify_object` | 移动、旋转、缩放、切换可见性 |
+| `blender_delete_object` | 删除物体 |
+| `blender_set_material` | 创建/设置基于 Principled BSDF 的材质颜色 |
+| `blender_render_image` | 渲染场景到文件 |
+| `blender_execute_code` | 执行任意 Python 代码（复杂材质、修改器、几何节点等）|
 
-### Viewport (1)
-| Tool | Description |
-|------|-------------|
-| `blender_get_viewport_screenshot` | Capture 3D viewport screenshot |
+### 视口 (1 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_get_viewport_screenshot` | 截取 3D 视口截图 |
 
-### PolyHaven (5)
-| Tool | Description |
-|------|-------------|
-| `blender_get_polyhaven_categories` | List categories (hdris/textures/models) |
-| `blender_search_polyhaven_assets` | Search assets by type and category |
-| `blender_download_polyhaven_asset` | Download HDRI/texture into Blender |
-| `blender_set_texture` | Apply PBR texture with full node graph |
-| `blender_download_polyhaven_model` | Download and import a 3D model (gltf/glb/fbx/obj/blend) |
+### PolyHaven (5 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_get_polyhaven_categories` | 浏览分类（HDRI/纹理/模型）|
+| `blender_search_polyhaven_assets` | 按类型和分类搜索资源 |
+| `blender_download_polyhaven_asset` | 下载 HDRI 或纹理到 Blender |
+| `blender_set_texture` | 应用完整的 PBR 纹理节点图 |
+| `blender_download_polyhaven_model` | 下载并导入 3D 模型 (gltf/glb/fbx/obj/blend) |
 
-### Sketchfab (API Key Required) (4)
-| Tool | Description |
-|------|-------------|
-| `blender_get_sketchfab_status` | Check integration and API key validity |
-| `blender_search_sketchfab_models` | Search for 3D models |
-| `blender_get_sketchfab_model_preview` | Get thumbnail preview (base64 image) |
-| `blender_download_sketchfab_model` | Download and import model |
+### Sketchfab (需 API 密钥) (4 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_get_sketchfab_status` | 检查集成状态和 API 密钥有效性 |
+| `blender_search_sketchfab_models` | 搜索 3D 模型 |
+| `blender_get_sketchfab_model_preview` | 获取模型缩略图 (base64) |
+| `blender_download_sketchfab_model` | 下载并导入模型 |
 
-### Hyper3D Rodin (AI 3D Generation) (5)
-| Tool | Description |
-|------|-------------|
-| `blender_get_hyper3d_status` | Check Hyper3D configuration |
-| `blender_generate_hyper3d_model_via_text` | Text-to-3D generation |
-| `blender_generate_hyper3d_model_via_images` | Image-to-3D generation |
-| `blender_poll_rodin_job_status` | Poll generation job progress |
-| `blender_import_generated_asset` | Import completed generation into scene |
+### Hyper3D Rodin (AI 3D 生成) (5 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_get_hyper3d_status` | 检查 Hyper3D 配置 |
+| `blender_generate_hyper3d_model_via_text` | 文本生成 3D 模型 |
+| `blender_generate_hyper3d_model_via_images` | 图片生成 3D 模型 |
+| `blender_poll_rodin_job_status` | 查询生成任务进度 |
+| `blender_import_generated_asset` | 导入完成的生成结果到场景 |
 
-### Hunyuan3D (Tencent AI 3D Generation) (4)
-| Tool | Description |
-|------|-------------|
-| `blender_get_hunyuan3d_status` | Check Hunyuan3D configuration |
-| `blender_generate_hunyuan3d_model` | Generate 3D model from text or image |
-| `blender_poll_hunyuan_job_status` | Poll generation job progress |
-| `blender_import_generated_asset_hunyuan` | Import completed generation (zip with OBJ) |
+### Hunyuan3D (腾讯 AI 3D 生成) (4 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_get_hunyuan3d_status` | 检查 Hunyuan3D 配置 |
+| `blender_generate_hunyuan3d_model` | 从文本或图片生成 3D 模型 |
+| `blender_poll_hunyuan_job_status` | 查询生成任务进度 |
+| `blender_import_generated_asset_hunyuan` | 导入完成的生成结果 (zip 含 OBJ) |
 
-### Ollama (Local LLM) (4)
-| Tool | Description |
-|------|-------------|
-| `blender_ai_prompt` | Send natural language prompt for Blender scripting help |
-| `blender_set_ollama_model` | Switch Ollama model |
-| `blender_set_ollama_url` | Change Ollama server URL |
-| `blender_get_ollama_models` | List available Ollama models |
+### Ollama (本地 LLM) (4 个)
+| 工具 | 说明 |
+|------|------|
+| `blender_ai_prompt` | 向本地 Ollama 发送自然语言提示 |
+| `blender_set_ollama_model` | 切换 Ollama 模型 |
+| `blender_set_ollama_url` | 设置 Ollama 服务器地址 |
+| `blender_get_ollama_models` | 列出可用模型 |
 
-## Key Fixes & Improvements
+## 关键修复与改进
 
-- **Thread safety**: All commands run on Blender's main thread via a timer queue — eliminates `Context` errors from TCP threads
-- **Auto-start server**: TCP server starts automatically when the addon is registered; no manual "Start Server" needed
-- **Robust TCP receive**: Fixed single `recv()` truncation — now uses buffered loop with JSON validation; tested with 628KB payloads
-- **External integrations fixed**: 26 instances of incorrect `blendermcp_*` property names fixed to `supermcp_*` — Sketchfab, Hyper3D, and Hunyuan3D now work correctly
+- **线程安全**: 所有命令通过定时器队列在 Blender 主线程执行 — 消除了 TCP 线程的 Context 错误
+- **自动启动**: TCP 服务器在插件注册时自动启动，无需手动点击"启动服务器"
+- **健壮的 TCP 接收**: 修复了单次 `recv()` 截断问题 — 改用带 JSON 校验的缓冲循环；已通过 628KB 负载测试
+- **外部集成修复**: 修复了 26 处 `blendermcp_*` → `supermcp_*` 属性名不匹配问题 — Sketchfab、Hyper3D、Hunyuan3D 现在正常工作
 
-## CLI Options
+## CLI 选项
 
 ```
-python superMCP/mcp_server.py [OPTIONS]
+python superMCP/mcp_server.py [选项]
 
-  --transport {stdio,streamable_http}  MCP transport (default: stdio)
-  --host HOST                          HTTP server host
-  --port PORT                          HTTP server port
-  --blender-host HOST                  Blender TCP host (default: localhost)
-  --blender-port PORT                  Blender TCP port (default: 9876)
-  --ollama-url URL                     Ollama server URL
-  --ollama-model MODEL                 Default Ollama model
+  --transport {stdio,streamable_http}  MCP 传输方式 (默认: stdio)
+  --host HOST                          HTTP 服务主机
+  --port PORT                          HTTP 服务端口
+  --blender-host HOST                  Blender TCP 主机 (默认: localhost)
+  --blender-port PORT                  Blender TCP 端口 (默认: 9876)
+  --ollama-url URL                     Ollama 服务器地址
+  --ollama-model MODEL                 默认 Ollama 模型
 ```
 
-## License
+## 许可证
 
 MIT
