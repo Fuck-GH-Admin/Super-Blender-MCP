@@ -5,7 +5,9 @@
 !.gitignore
 !CLAUDE.md
 !USAGE.md
+!USAGE_EN.md
 !README.md
+!README_EN.md
 !opencode.json
 
 # And these directories
