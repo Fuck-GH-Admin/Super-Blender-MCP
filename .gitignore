@@ -10,7 +10,6 @@
 
 # And these directories
 !superMCP/
-!analysis/
 
 # Keep .gitkeep inside tracked dirs if needed
 # Ignore __pycache__ everywhere
