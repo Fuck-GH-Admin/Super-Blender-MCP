@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["INSTRUCTIONS.md"],
+  "instructions": ["INSTRUCTIONS.md", "INSTRUCTIONS_EN.md"],
   "mcp": {
     "blender-super-mcp": {
       "type": "local",
