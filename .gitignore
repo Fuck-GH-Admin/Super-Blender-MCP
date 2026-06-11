@@ -1,0 +1,19 @@
+# Ignore everything at root level
+/*
+
+# But keep these specific root files
+!.gitignore
+!CLAUDE.md
+!USAGE.md
+!README.md
+!opencode.json
+
+# And these directories
+!superMCP/
+!analysis/
+
+# Keep .gitkeep inside tracked dirs if needed
+# Ignore __pycache__ everywhere
+__pycache__/
+*.pyc
+*.pyo
