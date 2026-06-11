@@ -68,31 +68,47 @@ mcp = FastMCP("blender_super_mcp")
 # Auto-discovery
 # ===========================================================================
 
+def _probe_port(host: str, port: int, timeout: float = 1.0) -> bool:
+    """Quickly probe a port to see if a Blender add-on responds."""
+    probe = json.dumps({"type": "get_scene_info", "params": {}}) + "\n"
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        sock.sendall(probe.encode("utf-8"))
+        chunks: list[bytes] = []
+        while True:
+            chunk = sock.recv(65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if b"\n" in chunk:
+                break
+        sock.close()
+        raw = b"".join(chunks).decode("utf-8").strip()
+        resp = json.loads(raw)
+        return resp.get("status") == "ok"
+    except (ConnectionRefusedError, TimeoutError, OSError, json.JSONDecodeError):
+        return False
+
+
 def _discover_blender_port(host: str, scan_range: tuple[int, int]) -> int:
     """Scan TCP ports to find a running Blender MCP add-on. Returns the port or raises."""
-    probe = json.dumps({"type": "get_scene_info", "params": {}}) + "\n"
+    # Fast path: try common port 9876 with short timeout
+    logger.info("Probing Blender add-on at %s:9876 ...", host)
+    if _probe_port(host, 9876, timeout=1.0):
+        logger.info("Auto-discovered Blender MCP on port 9876")
+        return 9876
+
+    # Fallback: scan full range with 1s timeout per port
     for port in range(scan_range[0], scan_range[1] + 1):
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(3)
-            sock.connect((host, port))
-            sock.sendall(probe.encode("utf-8"))
-            chunks: list[bytes] = []
-            while True:
-                chunk = sock.recv(65536)
-                if not chunk:
-                    break
-                chunks.append(chunk)
-                if b"\n" in chunk:
-                    break
-            sock.close()
-            raw = b"".join(chunks).decode("utf-8").strip()
-            resp = json.loads(raw)
-            if resp.get("status") == "ok":
-                logger.info("Auto-discovered Blender MCP on port %d", port)
-                return port
-        except (ConnectionRefusedError, TimeoutError, OSError, json.JSONDecodeError):
+        if port == 9876:
             continue
+        logger.info("Scanning %s:%d ...", host, port)
+        if _probe_port(host, port, timeout=1.0):
+            logger.info("Auto-discovered Blender MCP on port %d", port)
+            return port
+
     raise ConnectionRefusedError(
         f"Could not find Blender MCP add-on on {host} ports {scan_range[0]}-{scan_range[1]}. "
         "Make sure Blender is open with the Super MCP add-on enabled and the server started "
@@ -420,7 +436,7 @@ class PromptInput(BaseModel):
                  "idempotentHint": True, "openWorldHint": False},
 )
 async def blender_get_scene_info() -> str:
-    """Get a full summary of the current Blender scene: all objects, camera, frame range, render settings."""
+    """[USE THIS FIRST] Full summary of the current Blender scene: all objects, camera, frame range, render settings. Do NOT check ports/processes manually — this is the entry point."""
     try:
         response = _send_blender_command("get_scene_info")
         return _format_blender_result(response)
@@ -434,7 +450,7 @@ async def blender_get_scene_info() -> str:
                  "idempotentHint": True, "openWorldHint": False},
 )
 async def blender_get_object_info(params: GetObjectInfoInput) -> str:
-    """Get detailed info about a specific Blender object: transform, mesh stats, materials, lights, cameras."""
+    """Get detailed info about a specific Blender object (transform, mesh stats, materials, lights, cameras). Use instead of manually inspecting objects."""
     try:
         response = _send_blender_command("get_object_info", {"object_name": params.object_name})
         return _format_blender_result(response)
@@ -1066,7 +1082,12 @@ def main() -> None:
     if args.transport == "streamable_http":
         logger.info("  Endpoint      : http://%s:%d", args.host, args.port)
     if BLENDER_PORT == 0:
-        logger.info("  Blender add-on: %s (auto-discover on first command)", BLENDER_HOST)
+        logger.info("  Blender add-on: %s (warming up...)", BLENDER_HOST)
+        try:
+            BLENDER_PORT = _discover_blender_port(BLENDER_HOST, BLENDER_PORT_SCAN_RANGE)
+            logger.info("  Blender add-on: %s:%d (warmed up)", BLENDER_HOST, BLENDER_PORT)
+        except ConnectionRefusedError:
+            logger.warning("  Blender add-on not found yet — will retry on first command")
     else:
         logger.info("  Blender add-on: %s:%d", BLENDER_HOST, BLENDER_PORT)
     logger.info("  Ollama URL    : %s", _state["ollama_url"])
