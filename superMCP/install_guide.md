@@ -1,119 +1,109 @@
-# Blender Super MCP - Installation Guide
+# Blender Super MCP - 安装指南
 
-## Prerequisites
+## 前置要求
 
-- **Blender** 3.0 or newer
-- **Python** 3.10 or newer
-- **Claude Code** CLI or desktop app
-- **Ollama** (optional, for AI prompts)
+- **Blender** 3.0 或更新版本
+- **Python** 3.10 或更新版本
+- **opencode** 或 **Claude Code** CLI
+- **Ollama**（可选，用于 AI 提示）
 
-## Step 1: Install Python Dependencies
+## 第一步：安装 Python 依赖
 
 ```bash
 pip install "mcp[cli]>=1.6.0" "fastmcp>=2.0.0" "httpx>=0.27.0" "pydantic>=2.0.0"
 ```
 
-## Step 2: Install the Blender Addon
+## 第二步：安装 Blender 插件
 
-1. Open Blender
-2. Go to **Edit → Preferences → Add-ons**
-3. Click **Install...** (top right)
-4. Navigate to `superMCP/addon.py` and select it
-5. Enable the addon by checking **"Interface: Blender Super MCP"**
+1. 打开 Blender
+2. 进入 **编辑 → 偏好设置 → 插件**
+3. 点击右上角 **安装...**
+4. 选择 `superMCP/addon.py`
+5. 勾选 **"界面: Blender Super MCP"** 启用插件
 
-## Step 3: Verify the Addon Server
+## 第三步：验证插件服务器
 
-The addon automatically starts the TCP server when enabled. To verify:
+插件启用后会自动启动 TCP 服务器。验证方法：
 
-1. In the 3D Viewport, press **N** to open the sidebar
-2. Find the **"Super MCP"** tab
-3. You should see "Server Running" with port 9876
+1. 在 3D 视口中按 **N** 打开侧栏
+2. 找到 **"Super MCP"** 标签页
+3. 应该看到 "Server Running" 及端口 9876
 
-### Configure Integrations (optional)
+### 配置外部集成（可选）
 
-In the Super MCP panel, you can enable:
-- **Poly Haven**: Free CC0 textures, HDRIs, and models
-- **Hyper3D Rodin**: AI 3D generation (needs API key)
-- **Sketchfab**: 3D model library (needs API key)
-- **Hunyuan 3D**: Tencent's 3D generation (needs API key or local server)
+在 Super MCP 面板中，可以启用：
+- **Poly Haven**：免费 CC0 纹理、HDRI 和模型
+- **Hyper3D Rodin**：AI 3D 生成（需要 API 密钥）
+- **Sketchfab**：3D 模型库（需要 API 密钥）
+- **Hunyuan 3D**：腾讯 3D 生成（需要 API 密钥或本地服务器）
 
-## Step 4: Configure Claude Code
+## 第四步：配置 AI 客户端
 
-### Option A: Using `claude mcp add` (recommended)
+### 选项 A：使用 opencode（推荐）
 
-```bash
-claude mcp add --transport stdio blender -- python /absolute/path/to/superMCP/mcp_server.py
-```
+本项目已包含 `opencode.json`，直接在 opencode 中打开项目目录即可自动配置。
 
-### Option B: Manual configuration
-
-Add to `.claude/settings.json`:
-```json
-{
-  "mcpServers": {
-    "blender": {
-      "command": "python",
-      "args": ["/absolute/path/to/superMCP/mcp_server.py"]
-    }
-  }
-}
-```
-
-### Option C: HTTP mode (for non-Claude-Code clients)
+### 选项 B：使用 Claude Code
 
 ```bash
-python mcp_server.py --transport streamable_http --port 8000
+claude mcp add --transport stdio blender -- python /绝对路径/superMCP/mcp_server.py
 ```
 
-## Step 5: Test
+### 选项 C：HTTP 模式（非 CLI 客户端）
 
-In Claude Code, try:
+```bash
+python superMCP/mcp_server.py --transport streamable_http --port 8000
 ```
-Get the current Blender scene info
+
+## 第五步：测试
+
+在 AI 客户端中尝试输入：
+```
+获取当前 Blender 场景信息
 ```
 
-If it works, you'll see a list of objects in your Blender scene.
+如果成功，你会看到 Blender 场景中的对象列表。
 
-## Troubleshooting
+## 故障排除
 
 ### "Cannot connect to Blender add-on"
-- Make sure Blender is open with the addon enabled
-- The server auto-starts; check in the Super MCP panel (N sidebar) that it shows "Server Running"
-- If the server stopped, try disabling and re-enabling the addon in Preferences
-- Check that port 9876 is not blocked
+- 确保 Blender 已打开且插件已启用
+- 在 Super MCP 面板（N 侧栏）确认显示 "Server Running"
+- 如果服务器停止，尝试在偏好设置中禁用后重新启用插件
+- 检查端口 9876 是否被占用
 
 ### "Invalid JSON response"
-- The addon may have crashed. Check Blender's console for errors
-- Restart the addon server
+- 插件可能已崩溃，检查 Blender 控制台错误信息
+- 重启插件服务器
 
-### External integrations not working
-- PolyHaven: No API key needed, just enable in panel
-- Sketchfab: Get API key from sketchfab.com → Settings → API Keys
-- Hyper3D: Use free trial key (button in panel) or get your own
-- Hunyuan3D: Need Tencent Cloud credentials or local Hunyuan3D server
+### 外部集成不工作
+- PolyHaven：无需 API 密钥，在面板中启用即可
+- Sketchfab：从 sketchfab.com → Settings → API Keys 获取密钥
+- Hyper3D：使用面板中的免费试用密钥或自行获取
+- Hunyuan3D：需要腾讯云凭证或本地 Hunyuan3D 服务器
 
-### Ollama not responding
+### Ollama 无响应
 ```bash
-# Make sure Ollama is running
+# 确保 Ollama 正在运行
 ollama serve
 
-# Pull a model
+# 拉取模型
 ollama pull llama3.2
 ```
 
-## Optional: Ollama Setup
+## 可选：Ollama 设置
 
-Ollama provides local AI capabilities (no cloud API needed):
+Ollama 提供本地 AI 能力（无需云端 API）：
 
 ```bash
-# Install Ollama (macOS/Linux)
+# 安装 Ollama（macOS/Linux）
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull a model
+# 拉取模型
 ollama pull llama3.2
 
-# Start the server
+# 启动服务器
 ollama serve
 ```
 
-The MCP server connects to Ollama at `http://localhost:11434` by default. Change with `--ollama-url`.
+MCP 服务器默认连接 `http://localhost:11434` 的 Ollama，可通过 `--ollama-url` 修改。
