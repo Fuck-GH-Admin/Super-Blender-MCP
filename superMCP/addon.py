@@ -239,7 +239,7 @@ def handle_create_object(params: Dict) -> Any:
     rotation = _vec3_from_list(params.get("rotation"))
     scale = _vec3_from_list(params.get("scale"), (1.0, 1.0, 1.0))
 
-    bpy.ops.object.select_all(action="DESELECT")
+    existing = set(bpy.data.objects.keys())
 
     prim_dispatch = {
         "CUBE":       bpy.ops.mesh.primitive_cube_add,
@@ -259,9 +259,10 @@ def handle_create_object(params: Dict) -> Any:
 
     op(location=location, rotation=rotation, scale=scale)
 
-    obj = bpy.context.active_object
-    if obj is None:
-        raise RuntimeError("Object was not created (no active object after operator).")
+    new_objects = [bpy.data.objects[name] for name in bpy.data.objects.keys() if name not in existing]
+    if not new_objects:
+        raise RuntimeError("Object was not created after operator.")
+    obj = new_objects[0]
 
     desired_name = params.get("name")
     if desired_name:
@@ -364,6 +365,25 @@ import queue as _queue
 # Queue for dispatching code execution to the main thread
 _code_exec_queue: "_queue.Queue" = _queue.Queue()
 
+# Generic command queue for thread-safe handler dispatch
+_main_thread_cmd_queue: "_queue.Queue" = _queue.Queue()
+
+
+def _main_thread_command_processor():
+    """Timer callback that drains the generic command queue on the main thread."""
+    while not _main_thread_cmd_queue.empty():
+        try:
+            handler, params, result_holder, done_event = _main_thread_cmd_queue.get_nowait()
+        except _queue.Empty:
+            break
+        try:
+            result = handler(params)
+            result_holder["result"] = result
+        except Exception as exc:
+            result_holder["error"] = traceback.format_exc()
+        done_event.set()
+    return 0.05
+
 
 def _main_thread_code_executor():
     """Timer callback that drains the code execution queue on Blender's main thread."""
@@ -400,13 +420,13 @@ def handle_render_image(params: Dict) -> Any:
     if directory and not os.path.exists(directory):
         raise ValueError(f"Directory '{directory}' does not exist. Please create it first.")
 
-    # Must run on main thread - use the code execution queue
+    escaped_path = repr(file_path)
     code = f"""
 import bpy
 scene = bpy.context.scene
-scene.render.filepath = r"{file_path}"
+scene.render.filepath = {escaped_path}
 bpy.ops.render.render(write_still=True)
-print("RENDER_DONE:" + r"{file_path}")
+print("RENDER_DONE:" + {escaped_path})
 """
     result_holder: Dict[str, Any] = {}
     done_event = threading.Event()
@@ -823,10 +843,9 @@ def handle_download_polyhaven_model(params: Dict) -> Any:
     if not file_info or "url" not in file_info:
         return {"error": "Could not find download URL"}
 
-    temp_dir = tempfile.mkdtemp()
-    main_file_path = os.path.join(temp_dir, file_info["url"].split("/")[-1])
-
     try:
+        temp_dir = tempfile.mkdtemp()
+        main_file_path = os.path.join(temp_dir, file_info["url"].split("/")[-1])
         response = _requests.get(file_info["url"], headers=_REQ_HEADERS, timeout=60)
         if response.status_code != 200:
             return {"error": f"Download failed: {response.status_code}"}
@@ -875,12 +894,12 @@ def handle_download_polyhaven_model(params: Dict) -> Any:
 # ---------------------------------------------------------------------------
 
 def _get_sketchfab_api_key():
-    return bpy.context.scene.blendermcp_sketchfab_api_key
+    return bpy.context.scene.supermcp_sketchfab_api_key
 
 
 def handle_get_sketchfab_status(params: Dict) -> Any:
     api_key = _get_sketchfab_api_key()
-    enabled = bpy.context.scene.blendermcp_use_sketchfab
+    enabled = bpy.context.scene.supermcp_use_sketchfab
 
     if api_key and _HAS_REQUESTS:
         try:
@@ -1118,12 +1137,12 @@ def handle_download_sketchfab_model(params: Dict) -> Any:
 # ---------------------------------------------------------------------------
 
 def handle_get_hyper3d_status(params: Dict) -> Any:
-    enabled = bpy.context.scene.blendermcp_use_hyper3d
+    enabled = bpy.context.scene.supermcp_use_hyper3d
     if enabled:
-        api_key = bpy.context.scene.blendermcp_hyper3d_api_key
+        api_key = bpy.context.scene.supermcp_hyper3d_api_key
         if not api_key:
             return {"enabled": False, "message": "Hyper3D enabled but API key not set. Enter key in the Super MCP panel."}
-        mode = bpy.context.scene.blendermcp_hyper3d_mode
+        mode = bpy.context.scene.supermcp_hyper3d_mode
         key_type = "private" if api_key != RODIN_FREE_TRIAL_KEY else "free_trial"
         return {"enabled": True, "message": f"Hyper3D ready. Mode: {mode}, Key: {key_type}"}
     return {"enabled": False, "message": "Hyper3D is disabled. Enable in the Super MCP panel."}
@@ -1133,8 +1152,8 @@ def handle_create_rodin_job(params: Dict) -> Any:
     if not _HAS_REQUESTS:
         return {"error": "The 'requests' library is required"}
 
-    mode = bpy.context.scene.blendermcp_hyper3d_mode
-    api_key = bpy.context.scene.blendermcp_hyper3d_api_key
+    mode = bpy.context.scene.supermcp_hyper3d_mode
+    api_key = bpy.context.scene.supermcp_hyper3d_api_key
 
     text_prompt = params.get("text_prompt")
     images = params.get("images")  # list of (suffix, base64_data)
@@ -1181,8 +1200,8 @@ def handle_poll_rodin_job_status(params: Dict) -> Any:
     if not _HAS_REQUESTS:
         return {"error": "The 'requests' library is required"}
 
-    mode = bpy.context.scene.blendermcp_hyper3d_mode
-    api_key = bpy.context.scene.blendermcp_hyper3d_api_key
+    mode = bpy.context.scene.supermcp_hyper3d_mode
+    api_key = bpy.context.scene.supermcp_hyper3d_api_key
 
     if mode == "MAIN_SITE":
         subscription_key = params.get("subscription_key", "")
@@ -1242,8 +1261,8 @@ def handle_import_generated_asset(params: Dict) -> Any:
     if not _HAS_REQUESTS:
         return {"error": "The 'requests' library is required"}
 
-    mode = bpy.context.scene.blendermcp_hyper3d_mode
-    api_key = bpy.context.scene.blendermcp_hyper3d_api_key
+    mode = bpy.context.scene.supermcp_hyper3d_mode
+    api_key = bpy.context.scene.supermcp_hyper3d_api_key
     name = params.get("name", "")
 
     if mode == "MAIN_SITE":
@@ -1335,19 +1354,19 @@ def handle_import_generated_asset(params: Dict) -> Any:
 # ---------------------------------------------------------------------------
 
 def handle_get_hunyuan3d_status(params: Dict) -> Any:
-    enabled = bpy.context.scene.blendermcp_use_hunyuan3d
-    mode = bpy.context.scene.blendermcp_hunyuan3d_mode
+    enabled = bpy.context.scene.supermcp_use_hunyuan3d
+    mode = bpy.context.scene.supermcp_hunyuan3d_mode
 
     if not enabled:
         return {"enabled": False, "message": "Hunyuan3D is disabled. Enable in the Super MCP panel."}
 
     if mode == "OFFICIAL_API":
-        sid = bpy.context.scene.blendermcp_hunyuan3d_secret_id
-        skey = bpy.context.scene.blendermcp_hunyuan3d_secret_key
+        sid = bpy.context.scene.supermcp_hunyuan3d_secret_id
+        skey = bpy.context.scene.supermcp_hunyuan3d_secret_key
         if not sid or not skey:
             return {"enabled": False, "message": "Hunyuan3D enabled but SecretId/SecretKey not set."}
     elif mode == "LOCAL_API":
-        url = bpy.context.scene.blendermcp_hunyuan3d_api_url
+        url = bpy.context.scene.supermcp_hunyuan3d_api_url
         if not url:
             return {"enabled": False, "message": "Hunyuan3D enabled but API URL not set."}
 
@@ -1401,7 +1420,7 @@ def handle_generate_hunyuan3d_model(params: Dict) -> Any:
     if not _HAS_REQUESTS:
         return {"error": "The 'requests' library is required"}
 
-    mode = bpy.context.scene.blendermcp_hunyuan3d_mode
+    mode = bpy.context.scene.supermcp_hunyuan3d_mode
     text_prompt = params.get("text_prompt")
     image = params.get("image")
 
@@ -1411,8 +1430,8 @@ def handle_generate_hunyuan3d_model(params: Dict) -> Any:
         return {"error": "Cannot provide both prompt and image"}
 
     if mode == "OFFICIAL_API":
-        secret_id = bpy.context.scene.blendermcp_hunyuan3d_secret_id
-        secret_key = bpy.context.scene.blendermcp_hunyuan3d_secret_key
+        secret_id = bpy.context.scene.supermcp_hunyuan3d_secret_id
+        secret_key = bpy.context.scene.supermcp_hunyuan3d_secret_key
         if not secret_id or not secret_key:
             return {"error": "SecretId or SecretKey not set"}
 
@@ -1442,12 +1461,12 @@ def handle_generate_hunyuan3d_model(params: Dict) -> Any:
         return {"error": f"API error: {resp.status_code}"}
 
     elif mode == "LOCAL_API":
-        base_url = bpy.context.scene.blendermcp_hunyuan3d_api_url.rstrip('/')
+        base_url = bpy.context.scene.supermcp_hunyuan3d_api_url.rstrip('/')
         data = {
-            "octree_resolution": bpy.context.scene.blendermcp_hunyuan3d_octree_resolution,
-            "num_inference_steps": bpy.context.scene.blendermcp_hunyuan3d_num_inference_steps,
-            "guidance_scale": bpy.context.scene.blendermcp_hunyuan3d_guidance_scale,
-            "texture": bpy.context.scene.blendermcp_hunyuan3d_texture,
+            "octree_resolution": bpy.context.scene.supermcp_hunyuan3d_octree_resolution,
+            "num_inference_steps": bpy.context.scene.supermcp_hunyuan3d_num_inference_steps,
+            "guidance_scale": bpy.context.scene.supermcp_hunyuan3d_guidance_scale,
+            "texture": bpy.context.scene.supermcp_hunyuan3d_texture,
         }
         if text_prompt:
             data["text"] = text_prompt
@@ -1493,8 +1512,8 @@ def handle_poll_hunyuan_job_status(params: Dict) -> Any:
     if not job_id:
         return {"error": "Job ID required"}
 
-    secret_id = bpy.context.scene.blendermcp_hunyuan3d_secret_id
-    secret_key = bpy.context.scene.blendermcp_hunyuan3d_secret_key
+    secret_id = bpy.context.scene.supermcp_hunyuan3d_secret_id
+    secret_key = bpy.context.scene.supermcp_hunyuan3d_secret_key
     if not secret_id or not secret_key:
         return {"error": "SecretId or SecretKey not set"}
 
@@ -1638,12 +1657,29 @@ def _dispatch(command_type: str, params: Dict) -> bytes:
     handler = HANDLERS.get(command_type)
     if handler is None:
         return _err(f"Unknown command '{command_type}'. Available: {list(HANDLERS)}")
-    try:
-        result = handler(params)
-        return _ok(result)
-    except Exception as exc:
-        tb = traceback.format_exc()
-        return _err(f"{type(exc).__name__}: {exc}\n{tb}")
+
+    if command_type in ("execute_code", "render_image"):
+        try:
+            result = handler(params)
+            return _ok(result)
+        except Exception as exc:
+            tb = traceback.format_exc()
+            return _err(f"{type(exc).__name__}: {exc}\n{tb}")
+
+    result_holder: Dict[str, Any] = {}
+    done_event = threading.Event()
+    _main_thread_cmd_queue.put((handler, params, result_holder, done_event))
+
+    if not bpy.app.timers.is_registered(_main_thread_command_processor):
+        bpy.app.timers.register(_main_thread_command_processor, first_interval=0.05)
+
+    if not done_event.wait(timeout=120.0):
+        return _err(f"Command '{command_type}' timed out on main thread")
+
+    if "error" in result_holder:
+        return _err(str(result_holder["error"]))
+
+    return _ok(result_holder["result"])
 
 
 # ---------------------------------------------------------------------------
@@ -1657,11 +1693,23 @@ def _handle_client(conn: socket.socket, addr) -> None:
     conn.settimeout(SOCKET_TIMEOUT)
 
     try:
-        data = conn.recv(RECV_BUFFER)
-        if not data:
-            return
+        buffer = b""
+        max_size = RECV_BUFFER * 128
+        while True:
+            chunk = conn.recv(RECV_BUFFER)
+            if not chunk:
+                break
+            buffer += chunk
+            if len(buffer) > max_size:
+                raise ValueError(f"Request too large ({len(buffer)} bytes)")
+            try:
+                message = json.loads(buffer.decode("utf-8").strip())
+                break
+            except json.JSONDecodeError:
+                continue
 
-        message = json.loads(data.decode("utf-8").strip())
+        if not buffer:
+            return
         cmd_type = message.get("type", "")
         cmd_params = message.get("params", {})
         print(f"[Blender Super MCP] Command from {addr}: {cmd_type}")
@@ -1961,6 +2009,22 @@ def register():
 
     for cls in CLASSES:
         bpy.utils.register_class(cls)
+
+    # Auto-start the TCP server for MCP connectivity
+    global _server_thread, _server_running
+    if not _server_running:
+        _server_running = True
+        _server_thread = threading.Thread(
+            target=_server_loop,
+            args=(DEFAULT_HOST, DEFAULT_PORT),
+            daemon=True,
+        )
+        _server_thread.start()
+        try:
+            bpy.context.scene.supermcp_server_running = True
+        except Exception:
+            pass
+        print(f"[Blender Super MCP] Server auto-started on {DEFAULT_HOST}:{DEFAULT_PORT}")
     print("[Blender Super MCP] Add-on registered. Open the N-sidebar in 3D View → Super MCP.")
 
 

@@ -113,6 +113,25 @@ blender_poll_hunyuan_job_status(job_id="<returned_job_id>")
 blender_import_generated_asset_hunyuan(zip_file_url="<url_from_poll>", name="Chair")
 ```
 
+### Priority order for creating 3D assets
+
+When you need a 3D model, follow this priority:
+
+1. **Sketchfab** — Search existing high-quality models (API key required)
+   - `blender_search_sketchfab_models` → preview with `blender_get_sketchfab_model_preview` → `blender_download_sketchfab_model`
+
+2. **PolyHaven** — Free CC0 assets
+   - `blender_get_polyhaven_categories` / `blender_search_polyhaven_assets` → `blender_download_polyhaven_asset` / `blender_download_polyhaven_model` → `blender_set_texture`
+
+3. **Hyper3D Rodin** — AI-generated 3D from text/images
+   - `blender_generate_hyper3d_model_via_text` / `via_images` → `blender_poll_rodin_job_status` → `blender_import_generated_asset`
+
+4. **Hunyuan3D** — Tencent AI 3D generation
+   - `blender_generate_hunyuan3d_model` → `blender_poll_hunyuan_job_status` → `blender_import_generated_asset_hunyuan`
+
+5. **Code / Primitives** — Last resort: build from scratch
+   - `blender_create_object` for primitives → `blender_set_material` / `blender_execute_code` for custom materials & geometry
+
 ### Check scene before making changes
 Always call `blender_get_scene_info` first to understand what objects exist and their state.
 
@@ -132,6 +151,10 @@ If the scene is laggy:
 - **MCP server port**: Auto-discovered. No need to specify `--blender-port` unless you want to pin it.
 - **First command may be slow**: Auto-discovery scans ports 9876-9890, takes a few seconds.
 - **External integrations** (Sketchfab, Hyper3D, Hunyuan3D) need API keys configured in the Blender sidebar panel.
+- **Thread safety**: All commands run on Blender's main thread via a timer queue. Do NOT access `bpy.context.active_object` directly in handler code — use `bpy.data.objects` iteration instead.
+- **Auto-start**: The TCP server starts automatically when the addon is registered. No need to manually click "Start Server".
+- **Recv buffer**: The addon now uses a buffered recv loop (up to 1MB) instead of a single `recv()` call, preventing request truncation.
+- **Property names**: All scene properties use the `supermcp_*` prefix (NOT `blendermcp_*`). External integrations read from the correct registered properties.
 
 ## File Structure
 

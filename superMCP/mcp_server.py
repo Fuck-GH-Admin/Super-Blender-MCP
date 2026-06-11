@@ -164,14 +164,16 @@ def _format_blender_result(response: Dict[str, Any]) -> str:
     return str(result)
 
 
-async def _query_ollama(prompt: str) -> str:
+async def _query_ollama(prompt: str, system_prompt: str | None = None) -> str:
     """Send a prompt to the local Ollama server and return the response."""
     url = f"{_state['ollama_url']}/api/generate"
-    payload = {
+    payload: Dict[str, Any] = {
         "model": _state["ollama_model"],
         "prompt": prompt,
         "stream": False,
     }
+    if system_prompt:
+        payload["system"] = system_prompt
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             resp = await client.post(url, json=payload)
@@ -943,8 +945,7 @@ async def blender_ai_prompt(params: PromptInput) -> str:
         "Provide concise, runnable Python code examples when appropriate. "
         f"Current Ollama model: {_state['ollama_model']}."
     )
-    full_prompt = f"{system}\n\nUser: {params.prompt}\n\nAssistant:"
-    return await _query_ollama(full_prompt)
+    return await _query_ollama(params.prompt, system_prompt=system)
 
 
 @mcp.tool(

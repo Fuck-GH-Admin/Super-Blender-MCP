@@ -21,12 +21,13 @@ pip install "mcp[cli]>=1.6.0" "fastmcp>=2.0.0" "httpx>=0.27.0" "pydantic>=2.0.0"
 4. Navigate to `superMCP/addon.py` and select it
 5. Enable the addon by checking **"Interface: Blender Super MCP"**
 
-## Step 3: Start the Addon Server in Blender
+## Step 3: Verify the Addon Server
+
+The addon automatically starts the TCP server when enabled. To verify:
 
 1. In the 3D Viewport, press **N** to open the sidebar
 2. Find the **"Super MCP"** tab
-3. Click **"Start Server"**
-4. You should see "Server Running" with port 9876
+3. You should see "Server Running" with port 9876
 
 ### Configure Integrations (optional)
 
@@ -77,7 +78,8 @@ If it works, you'll see a list of objects in your Blender scene.
 
 ### "Cannot connect to Blender add-on"
 - Make sure Blender is open with the addon enabled
-- Make sure you clicked "Start Server" in the Super MCP panel
+- The server auto-starts; check in the Super MCP panel (N sidebar) that it shows "Server Running"
+- If the server stopped, try disabling and re-enabling the addon in Preferences
 - Check that port 9876 is not blocked
 
 ### "Invalid JSON response"
